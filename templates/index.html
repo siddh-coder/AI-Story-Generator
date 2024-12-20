@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text and Image Generator</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Text and Image Generator</h1>
+
+        <!-- Text Generation Section -->
+        <div>
+            <h2>Ask GPT</h2>
+            <textarea id="gpt-question" placeholder="Enter your question"></textarea>
+            <button onclick="askGPT()">Ask</button>
+            <p><strong>Answer:</strong> <span id="gpt-answer"></span></p>
+        </div>
+
+        <!-- Image Generation Section -->
+        <div>
+            <h2>Generate Image</h2>
+            <input id="image-prompt" placeholder="Enter a description for the image">
+            <button onclick="generateImage()">Generate</button>
+            <div id="loading-spinner" style="display: none;">
+                <div class="spinner"></div>
+            </div>
+            <img id="generated-image" alt="Generated Image" />
+        </div>
+
+        <!-- PDF Generation Section -->
+        <div>
+        <h2>Download PDF</h2>
+        <button id="generate-pdf-button" onclick="generatePDF()">Generate PDF</button>
+        <div id="pdf-loading-spinner" style="display: none;">
+            <div class="spinner"></div>
+        </div>
+        <div class="link-container">
+        <p id="pdf-link"></p>
+    </div>
+</div>
+    </div>
+
+    <script>
+        async function askGPT() {
+            const question = document.getElementById('gpt-question').value;
+            const answerElement = document.getElementById('gpt-answer');
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question }),
+                });
+                const data = await response.json();
+                answerElement.textContent = data.answer || 'No response received.';
+            } catch (error) {
+                console.error('Error:', error);
+                answerElement.textContent = 'Error generating response.';
+            }
+        }
+
+        async function generateImage() {
+            const prompt = document.getElementById('image-prompt').value;
+            const spinner = document.getElementById('loading-spinner');
+            const imgElement = document.getElementById('generated-image');
+
+            spinner.style.display = 'block';
+            imgElement.src = '';
+
+            try {
+                const response = await fetch('/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt }),
+                });
+                const data = await response.json();
+                if (data.image_base64) {
+                    imgElement.src = `data:image/png;base64,${data.image_base64}`;
+                } else {
+                    alert('Error generating image.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while generating the image.');
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        async function generatePDF() {
+            const gptAnswer = document.getElementById('gpt-answer').textContent;
+            const imgElement = document.getElementById('generated-image').src;
+            const spinner = document.getElementById('pdf-loading-spinner');
+            const generateButton = document.getElementById('generate-pdf-button');
+            const pdfLinkElement = document.getElementById('pdf-link');
+
+            spinner.style.display = 'block';
+            generateButton.disabled = true;
+
+            try {
+                const response = await fetch('/generate-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        answer: gptAnswer,
+                        image_base64: imgElement,
+                    }),
+                });
+                const data = await response.json();
+                if (data.pdf_base64) {
+                    const link = document.createElement('a');
+                    link.href = `data:application/pdf;base64,${data.pdf_base64}`;
+                    link.download = 'output.pdf';
+                    link.textContent = 'Click here to download the PDF';
+                    pdfLinkElement.innerHTML = ''; // Clear previous content
+                    pdfLinkElement.appendChild(link);
+                } else {
+                    pdfLinkElement.textContent = 'Error generating PDF.';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                pdfLinkElement.textContent = 'An error occurred while generating the PDF.';
+            } finally {
+                spinner.style.display = 'none';
+                generateButton.disabled = false;
+            }
+        }
+
+
+    </script>
+</body>
+</html>
+
